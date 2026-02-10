@@ -10,10 +10,10 @@ function App() {
         colors={['#5227FF', '#FF9FFC', '#B19EEF']}
         glassIntensity={0.1}
         refractionStrength={0.2}
-        causticStrength={0.5}
+        causticStrength={10}
         glassOpacity={0.85}
-        mouseForce={25}
-        cursorSize={150}
+        mouseForce={80}
+        cursorSize={20}
         autoDemo={false}
         style={{
           position: 'absolute',
@@ -27,10 +27,12 @@ function App() {
 
       <div className='p-16'>
         {/* LiquidShader with fully styled content */}
-        <LiquidShader style={{ height: '50vh', background: 'transparent' }}>
+        <LiquidShader style={{ height: '50vh', background: 'transparent', borderRadius: '16px', padding: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
 
-          <div style={{ padding: '3px', width: '100%', height: '100%' }}>
-            <div style={{backgroundColor:'#000000', width:'100%', height:'100%', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:'20px'}}>
+          <div style={{ padding: '1px', width: '100%', height: '100%' }}>
+            <div style={{backgroundColor:'#000000', width:'100%', height:'100%', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:'20px',
+              borderRadius: '16px',
+            }}>
               <div style={{
                 color: '#ffffff',
                 fontSize: '24px',
