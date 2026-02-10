@@ -5,6 +5,7 @@ export default function LiquidShader({ children, className = '', style = {} }) {
   const containerRef = useRef(null);
   const canvasRef = useRef(null);
   const contentRef = useRef(null);
+  const animationFrameRef = useRef(null);
 
   useEffect(() => {
     if (!containerRef.current || !contentRef.current) return;
@@ -21,149 +22,14 @@ export default function LiquidShader({ children, className = '', style = {} }) {
       return { width: rect.width, height: rect.height };
     };
 
-    // Text-canvas setup
-    const textCanvas = document.createElement('canvas');
-    const textCtx = textCanvas.getContext('2d');
-
-    function drawContent() {
-      const { width: w, height: h } = getContainerSize();
-      textCanvas.width = w;
-      textCanvas.height = h;
-      textCtx.clearRect(0, 0, w, h);
-
-      const contentDiv = contentRef.current;
-      if (!contentDiv) return;
-
-      const containerRect = containerRef.current.getBoundingClientRect();
-
-      // Recursive function to draw all elements
-      function drawElement(element) {
-        if (!element || element.nodeType !== 1) return; // Only process element nodes
-
-        const rect = element.getBoundingClientRect();
-        const x = rect.left - containerRect.left;
-        const y = rect.top - containerRect.top;
-        const width = rect.width;
-        const height = rect.height;
-
-        // Skip if element has no dimensions or is outside bounds
-        if (width <= 0 || height <= 0) return;
-
-        const computedStyle = window.getComputedStyle(element);
-        const bgColor = computedStyle.backgroundColor;
-        const bgImage = computedStyle.backgroundImage;
-        const borderRadius = parseInt(computedStyle.borderRadius) || 0;
-
-        // Draw background if element has one
-        const hasBackground = (bgColor && bgColor !== 'rgba(0, 0, 0, 0)' && bgColor !== 'transparent') || 
-                             (bgImage && bgImage !== 'none');
-
-        if (hasBackground) {
-          textCtx.save();
-
-          // Draw shadow if exists
-          const shadowColor = computedStyle.boxShadow;
-          if (shadowColor && shadowColor !== 'none') {
-            textCtx.shadowColor = 'rgba(102, 126, 234, 0.4)';
-            textCtx.shadowBlur = 30;
-            textCtx.shadowOffsetX = 0;
-            textCtx.shadowOffsetY = 10;
-          }
-
-          // Draw background with border radius
-          if (borderRadius > 0) {
-            const radius = Math.min(borderRadius, width / 2, height / 2);
-            textCtx.beginPath();
-            textCtx.moveTo(x + radius, y);
-            textCtx.lineTo(x + width - radius, y);
-            textCtx.quadraticCurveTo(x + width, y, x + width, y + radius);
-            textCtx.lineTo(x + width, y + height - radius);
-            textCtx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
-            textCtx.lineTo(x + radius, y + height);
-            textCtx.quadraticCurveTo(x, y + height, x, y + height - radius);
-            textCtx.lineTo(x, y + radius);
-            textCtx.quadraticCurveTo(x, y, x + radius, y);
-            textCtx.closePath();
-          } else {
-            textCtx.beginPath();
-            textCtx.rect(x, y, width, height);
-          }
-
-          // Fill background
-          if (bgImage && bgImage.includes('gradient')) {
-            const gradient = textCtx.createLinearGradient(x, y, x + width, y + height);
-            gradient.addColorStop(0, '#667eea');
-            gradient.addColorStop(1, '#764ba2');
-            textCtx.fillStyle = gradient;
-          } else if (bgColor && bgColor !== 'rgba(0, 0, 0, 0)' && bgColor !== 'transparent') {
-            textCtx.fillStyle = bgColor;
-          }
-
-          textCtx.fill();
-          textCtx.restore();
-        }
-
-        // Draw text content if element has direct text (not in children)
-        const textContent = Array.from(element.childNodes)
-          .filter(node => node.nodeType === 3) // Text nodes only
-          .map(node => node.textContent.trim())
-          .join(' ')
-          .trim();
-
-        if (textContent) {
-          textCtx.save();
-
-          const fontSize = parseInt(computedStyle.fontSize) || 16;
-          const fontWeight = computedStyle.fontWeight || 'normal';
-          const fontFamily = computedStyle.fontFamily || 'Arial, sans-serif';
-          const color = computedStyle.color || '#000000';
-          const textAlign = computedStyle.textAlign || 'left';
-
-          textCtx.fillStyle = color;
-          textCtx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
-          
-          // Set text alignment
-          let textX = x;
-          if (textAlign === 'center' || element.tagName === 'BUTTON') {
-            textCtx.textAlign = 'center';
-            textX = x + width / 2;
-          } else if (textAlign === 'right') {
-            textCtx.textAlign = 'right';
-            textX = x + width;
-          } else {
-            textCtx.textAlign = 'left';
-            textX = x + parseInt(computedStyle.paddingLeft) || x;
-          }
-
-          textCtx.textBaseline = 'middle';
-
-          // Add text shadow for better readability
-          textCtx.shadowColor = 'rgba(0, 0, 0, 0.2)';
-          textCtx.shadowBlur = 2;
-          textCtx.shadowOffsetX = 0;
-          textCtx.shadowOffsetY = 1;
-
-          const textY = y + height / 2;
-          textCtx.fillText(textContent, textX, textY);
-          textCtx.restore();
-        }
-
-        // Recursively draw children
-        Array.from(element.children).forEach(child => drawElement(child));
-      }
-
-      // Start drawing from content div's children
-      Array.from(contentDiv.children).forEach(child => drawElement(child));
-
-      if (textTexture) {
-        textTexture.needsUpdate = true;
-      }
-    }
-
     // THREE.js / WebGL setup
     const scene = new THREE.Scene();
     const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-    const renderer = new THREE.WebGLRenderer({ alpha: true, premultipliedAlpha: false });
+    const renderer = new THREE.WebGLRenderer({ 
+      alpha: true, 
+      premultipliedAlpha: false,
+      preserveDrawingBuffer: true 
+    });
     
     const updateRendererSize = () => {
       const { width, height } = getContainerSize();
@@ -174,8 +40,8 @@ export default function LiquidShader({ children, className = '', style = {} }) {
     updateRendererSize();
     
     canvasRef.current = renderer.domElement;
-    renderer.domElement.style.cssText = 'position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;';
-    containerRef.current.insertBefore(renderer.domElement, containerRef.current.firstChild);
+    renderer.domElement.style.cssText = 'position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10;';
+    containerRef.current.appendChild(renderer.domElement);
 
     const isWebGL2 = (renderer.capabilities && renderer.capabilities.isWebGL2) || false;
 
@@ -204,8 +70,27 @@ export default function LiquidShader({ children, className = '', style = {} }) {
     });
     let renderTargetB = renderTargetA.clone();
 
-    const textTexture = new THREE.CanvasTexture(textCanvas);
-    textTexture.needsUpdate = true;
+    // Create texture from child canvas
+    let contentTexture = null;
+    let childCanvas = null;
+
+    function updateContentTexture() {
+      // Find the child canvas element
+      const canvas = contentRef.current?.querySelector('canvas');
+      
+      if (canvas && canvas !== childCanvas) {
+        childCanvas = canvas;
+        // Create texture from the child canvas
+        contentTexture = new THREE.CanvasTexture(canvas);
+        contentTexture.minFilter = THREE.LinearFilter;
+        contentTexture.magFilter = THREE.LinearFilter;
+        displayMaterial.uniforms.uContentTexture.value = contentTexture;
+      }
+      
+      if (contentTexture && childCanvas) {
+        contentTexture.needsUpdate = true;
+      }
+    }
 
     // Shaders
     const simMaterial = new THREE.ShaderMaterial({
@@ -239,6 +124,7 @@ void main(){
     velocity -= 0.001 * uDelta * pressure;
     velocity *= 1.0 - 0.005 * uDelta;
     pressure *= uDamping;
+    velocity *= 1.0 - 0.005 * uDelta;
     float gradX = (p_right - p_left) / 2.0;
     float gradY = (p_up - p_down) / 2.0;
     gl_FragColor = vec4(pressure, velocity, gradX, gradY);
@@ -263,7 +149,7 @@ void main(){
     const displayMaterial = new THREE.ShaderMaterial({
       uniforms: {
         uTexture: { value: null },
-        uContentTexture: { value: textTexture },
+        uContentTexture: { value: null },
         uResolution: { value: new THREE.Vector2(getContainerSize().width, getContainerSize().height) }
       },
       transparent: true,
@@ -272,24 +158,42 @@ void main(){
       fragmentShader: `uniform sampler2D uTexture; uniform sampler2D uContentTexture; uniform vec2 uResolution; varying vec2 vUv;
 void main(){
     vec4 data = texture2D(uTexture, vUv);
-    vec2 distortion = data.zw * 0.25;
+    vec2 distortion = data.zw * 0.3;
     vec2 distortedUV = vUv + distortion;
+    
+    // Sample the content texture with distortion
     vec4 content = texture2D(uContentTexture, distortedUV);
     vec3 color = content.rgb;
+    
     float waveHeight = abs(data.x);
-    color += vec3(1.0) * max(0.0, data.x) * 0.1;
-    vec3 normal = normalize(vec3(-data.z * 3.5, 0.4, -data.w * 3.5));
-    vec3 lightDir = normalize(vec3(-2.5,6.0,2.5));
+    
+    // Add brightness where water is raised
+    color += vec3(1.0) * max(0.0, data.x) * 0.15;
+    
+    // Calculate normal from gradients for specular lighting
+    vec3 normal = normalize(vec3(-data.z * 4.0, 0.5, -data.w * 4.0));
+    vec3 lightDir = normalize(vec3(-2.5, 6.0, 2.5));
+    
+    // Sharp specular highlights
     float spec = pow(max(0.0, dot(normal, lightDir)), 200.0);
-    color += vec3(1.0,1.0,1.0) * spec * 1.0;
+    color += vec3(1.0, 1.0, 1.0) * spec * 1.2;
+    
+    // Softer specular
     float spec2 = pow(max(0.0, dot(normal, lightDir)), 100.0);
-    color += vec3(1.0,0.98,0.95) * spec2 * 0.5;
-    float caustic = sin(waveHeight * 20.0) * 0.5 + 0.5;
-    color += vec3(1.0,0.95,0.9) * caustic * waveHeight * 0.08;
-    float waterAlpha = 0.12 + waveHeight * 0.3 + spec * 0.5 + length(distortion) * 0.8;
-    waterAlpha = clamp(waterAlpha, 0.08, 0.6);
-    float alpha = max(content.a, waterAlpha);
-    gl_FragColor = vec4(color, alpha);
+    color += vec3(1.0, 0.98, 0.95) * spec2 * 0.6;
+    
+    // Caustic effect
+    float caustic = sin(waveHeight * 25.0) * 0.5 + 0.5;
+    color += vec3(1.0, 0.95, 0.9) * caustic * waveHeight * 0.1;
+    
+    // Calculate alpha - make water visible especially where there's distortion
+    float waterAlpha = 0.15 + waveHeight * 0.4 + spec * 0.6 + length(distortion) * 1.0;
+    waterAlpha = clamp(waterAlpha, 0.1, 0.7);
+    
+    // If content has alpha, respect it
+    float finalAlpha = content.a > 0.01 ? max(content.a, waterAlpha) : waterAlpha;
+    
+    gl_FragColor = vec4(color, finalAlpha);
 }`
     });
 
@@ -317,24 +221,34 @@ void main(){
 
     const container = containerRef.current;
 
-    container.addEventListener('mouseenter', () => isMouseActive = true);
-    container.addEventListener('mouseleave', () => isMouseActive = false);
-    container.addEventListener('mousemove', (e) => { isMouseActive = true; updateMouseFromEvent(e); });
-    container.addEventListener('touchstart', (e) => {
+    const handleMouseEnter = () => { isMouseActive = true; };
+    const handleMouseLeave = () => { isMouseActive = false; };
+    const handleMouseMove = (e) => { isMouseActive = true; updateMouseFromEvent(e); };
+    const handleTouchStart = (e) => {
       isMouseActive = true;
       const t = e.touches[0];
       updateMouseFromEvent(t);
-    }, { passive: true });
-    container.addEventListener('touchmove', (e) => {
+    };
+    const handleTouchMove = (e) => {
       isMouseActive = true;
       updateMouseFromEvent(e.touches[0]);
-    }, { passive: true });
-    container.addEventListener('touchend', () => { isMouseActive = false; });
+    };
+    const handleTouchEnd = () => { isMouseActive = false; };
 
-    // Water animation loop
-    let animationId;
+    container.addEventListener('mouseenter', handleMouseEnter);
+    container.addEventListener('mouseleave', handleMouseLeave);
+    container.addEventListener('mousemove', handleMouseMove);
+    container.addEventListener('touchstart', handleTouchStart, { passive: true });
+    container.addEventListener('touchmove', handleTouchMove, { passive: true });
+    container.addEventListener('touchend', handleTouchEnd);
+
+    // Animation loop
+    let frameCount = 0;
     function animateWater() {
-      animationId = requestAnimationFrame(animateWater);
+      animationFrameRef.current = requestAnimationFrame(animateWater);
+
+      // Update content texture from child canvas
+      updateContentTexture();
 
       const mouseMoved = Math.abs(mouse.x - prevMouse.x) > 0.5 || Math.abs(mouse.y - prevMouse.y) > 0.5;
 
@@ -363,6 +277,7 @@ void main(){
 
       if (shockwaveTime < 10) shockwaveTime++;
 
+      // Simulate water physics
       simMaterial.uniforms.uTexture.value = previousTarget.texture;
       simMaterial.uniforms.uMouse.value.set(mouse.x, mouse.y, (isMouseActive && mouseMoved) ? 1 : 0);
       simMaterial.uniforms.uDelta.value = waveSpeed;
@@ -375,6 +290,7 @@ void main(){
       renderer.render(scene, camera);
       scene.remove(simMesh);
 
+      // Display with distortion
       displayMaterial.uniforms.uTexture.value = currentTarget.texture;
       const size = getContainerSize();
       displayMaterial.uniforms.uResolution.value.set(size.width, size.height);
@@ -389,6 +305,8 @@ void main(){
       prevMouse.copy(mouse);
 
       if (shockwaveTime > 3) shouldTriggerShockwave = false;
+      
+      frameCount++;
     }
 
     // Resize handling
@@ -398,38 +316,29 @@ void main(){
       renderTargetA.setSize(resolution.x, resolution.y);
       renderTargetB.setSize(resolution.x, resolution.y);
       simMaterial.uniforms.uResolution.value.set(resolution.x, resolution.y);
-      textCanvas.width = size.width;
-      textCanvas.height = size.height;
-      setTimeout(() => drawContent(), 100);
     }
 
     window.addEventListener('resize', onResize);
 
-    // Initial canvas setup
-    const initialSize = getContainerSize();
-    textCanvas.width = initialSize.width;
-    textCanvas.height = initialSize.height;
-    
-    // Draw content after delays to ensure DOM is ready
-    setTimeout(() => drawContent(), 100);
-    setTimeout(() => drawContent(), 300);
-    setTimeout(() => drawContent(), 600);
-
-    animateWater();
+    // Start after a small delay to ensure child canvas is ready
+    setTimeout(() => {
+      updateContentTexture();
+      animateWater();
+    }, 100);
 
     // Cleanup
     return () => {
-      cancelAnimationFrame(animationId);
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
       window.removeEventListener('resize', onResize);
       
-      if (container) {
-        container.removeEventListener('mouseenter', () => isMouseActive = true);
-        container.removeEventListener('mouseleave', () => isMouseActive = false);
-        container.removeEventListener('mousemove', updateMouseFromEvent);
-        container.removeEventListener('touchstart', updateMouseFromEvent);
-        container.removeEventListener('touchmove', updateMouseFromEvent);
-        container.removeEventListener('touchend', () => isMouseActive = false);
-      }
+      container.removeEventListener('mouseenter', handleMouseEnter);
+      container.removeEventListener('mouseleave', handleMouseLeave);
+      container.removeEventListener('mousemove', handleMouseMove);
+      container.removeEventListener('touchstart', handleTouchStart);
+      container.removeEventListener('touchmove', handleTouchMove);
+      container.removeEventListener('touchend', handleTouchEnd);
       
       renderer.dispose();
       geometry.dispose();
@@ -437,12 +346,12 @@ void main(){
       displayMaterial.dispose();
       renderTargetA.dispose();
       renderTargetB.dispose();
-      textTexture.dispose();
-      if (containerRef.current && renderer.domElement.parentNode === containerRef.current) {
+      if (contentTexture) contentTexture.dispose();
+      if (renderer.domElement.parentNode === containerRef.current) {
         containerRef.current.removeChild(renderer.domElement);
       }
     };
-  }, [children]);
+  }, []);
 
   return (
     <div
@@ -457,7 +366,7 @@ void main(){
         ...style
       }}
     >
-      <div ref={contentRef} style={{ visibility: 'hidden', position: 'absolute', width: '100%', height: '100%', pointerEvents: 'none' }}>
+      <div ref={contentRef} style={{ width: '100%', height: '100%', position: 'relative' }}>
         {children}
       </div>
     </div>

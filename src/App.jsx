@@ -1,11 +1,13 @@
 import React from 'react'
 import LiquidEtherGlass from './components/LiquidEtherGlass'
 import LiquidShader from './components/LiquidShader';
+import GravityPhysics from './components/Gravityphysics';
 
 function App() {
   return (
-    <div style={{ position: 'relative', width: '100vw', height: '100vh', overflow: 'hidden' }}>
-      {/* Liquid Glass Background - Full Screen */}
+    <div style={{ height: '100vh', position: 'relative' }}>
+
+      {/* Liquid Glass Background - Full Screen (Behind everything) */}
       <LiquidEtherGlass
         colors={['#5227FF', '#FF9FFC', '#B19EEF']}
         glassIntensity={0.1}
@@ -25,53 +27,15 @@ function App() {
         }}
       />
 
-      <div className='p-16'>
-        {/* LiquidShader with fully styled content */}
-        <LiquidShader style={{ height: '50vh', background: 'transparent', borderRadius: '16px', padding: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-
-          <div style={{ padding: '1px', width: '100%', height: '100%' }}>
-            <div style={{backgroundColor:'#000000', width:'100%', height:'100%', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:'20px',
-              borderRadius: '16px',
-            }}>
-              <div style={{
-                color: '#ffffff',
-                fontSize: '24px',
-                fontWeight: 'bold',
-                top: '50px',
-                left: '50px'
-              }}>
-                kjdbckjdbk
-              </div>
-              <div style={{
-
-              }}>
-                <button style={{
-                  padding: '16px 48px',
-                  fontSize: '18px',
-                  fontWeight: '500',
-                  backgroundColor: '#ff6f61',
-
-                  color: '#ffffff',
-
-                }}
-                  onMouseEnter={(e) => {
-                    e.target.style.transform = 'translateY(-2px)';
-                    e.target.style.boxShadow = '0 15px 40px rgba(255, 111, 97, 0.6)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.transform = 'translateY(0)';
-                    e.target.style.boxShadow = '0 10px 30px rgba(255, 111, 97, 0.4)';
-                  }}
-                  onClick={() => alert('Button clicked!')}>
-                  Click Me
-                </button>
-              </div>
-            </div>
+      {/* Liquid Shader - Top Half (Above the glass) */}
+      <div className='h-[50vh] relative' style={{ zIndex: 1 }}>
+        <LiquidShader>
+          <div className='h-[100%] p-3'>
+            <GravityPhysics />
           </div>
         </LiquidShader>
       </div>
 
-      
     </div>
   )
 }
